@@ -3269,6 +3269,261 @@ module SOverflowLifter (D : S) : SOverflow with type int_t = D.int_t and type t 
 end
 
 
+module Bitfield : S with type int_t = Z.t and type t = (Z.t * Z.t) option = struct 
+  let name () = "bitfield"
+
+  type t = (Z.t * Z.t) option [@@deriving eq, ord, hash]
+  type int_t = Z.t
+
+  let (|:) = Z.logor
+  let (&:) = Z.logand
+  let (~:) = Z.lognot
+
+  let ( *: ) = Z.mul
+  let (+:) = Z.add
+  let (-:) = Z.sub
+  let (%:) = Z.rem
+  let (/:) = Z.div
+  let (=:) = Z.equal
+  let (<:) x y = Z.compare x y < 0
+  let (>:) x y = Z.compare x y > 0
+  let (<=:) x y = Z.compare x y <= 0
+  let (>=:) x y = Z.compare x y >= 0
+
+  let invar x = match x with 
+  | None -> false 
+  | Some (z, o) -> (Z.lognot z) =: o
+
+  let pretty _ = failwith "undefined" 
+
+  let show _ = failwith "undefined"
+
+  let add ?no_ov ik x y = match x, y with 
+  | None, None -> None 
+  | None, _ | _, None -> raise (ArithmeticOnIntegerBot (Printf.sprintf "%s op %s" (show x) (show y))) 
+  | Some(z1, o1), Some(z2, o2) -> Some (z1 +: z2, o1 +: o2)
+
+  let sub ?no_ov ik x y = match x, y with 
+  | None, None -> None 
+  | None, _ | _, None -> raise (ArithmeticOnIntegerBot (Printf.sprintf "%s op %s" (show x) (show y))) 
+  | Some(z1, o1), Some(z2, o2) -> Some (z1 -: z2, o1 -: o2)
+
+  let mul ?no_ov ik x y = match x, y with 
+  | None, None -> None 
+  | None, _ | _, None -> raise (ArithmeticOnIntegerBot (Printf.sprintf "%s op %s" (show x) (show y))) 
+  | Some(z1, o1), Some(z2, o2) -> Some (z1 *: z2, o1 *: o2)
+  
+  let div ?no_ov ik x y = match x, y with 
+  | None, None -> None 
+  | None, _ | _, None -> raise (ArithmeticOnIntegerBot (Printf.sprintf "%s op %s" (show x) (show y))) 
+  | Some(z1, o1), Some(z2, o2) -> Some (z1 /: z2, o1 /: o2) 
+
+  let rem ik x y = match x, y with 
+  | None, None -> None 
+  | None, _ | _, None -> raise (ArithmeticOnIntegerBot (Printf.sprintf "%s op %s" (show x) (show y))) 
+  | Some(z1, o1), Some(z2, o2) -> Some (z1 %: z2, o1 %: o2) 
+
+  let neg ?no_ov ik x = match x with
+  | None -> None 
+  | Some(z, o) -> Some (Z.neg z, Z.neg o)
+
+  let printXml _ = failwith "undefined"
+
+  let to_yojson _ = failwith "undefined"
+
+  let tag _ = failwith "undefined"
+
+  let relift _ = failwith "undefined"
+
+  let leq x y = match x, y with
+  | None, _ -> true 
+  | _, None -> false 
+  | Some (z1, o1), Some (z2, o2) -> if invar x && invar y then o1 <=: o2 else false
+
+  let of_int ik (x : int_t) = Some(~: x, x)
+
+  let to_int (x : t) = match x with 
+  | None -> None 
+  | Some(z,o) -> Some o
+
+  let pretty_diff _ = failwith "undefined"
+
+  let bot () = None
+
+  let is_bot x = x = bot ()
+
+  let top () = failwith "undefined for bitfield"
+
+  let is_top x = x = top ()
+
+  let bot_of ik = bot ()
+
+  let range ik = Size.range ik
+
+  let top_of ik = of_int ik (snd(range ik))
+
+  let equal_to i x = match x with
+  | None -> failwith "unsupported: equal_to with bottom"
+  | Some(z,o) -> if invar x && o =: i then `Eq else if z =: i || (~: o) =: i then `Top else `Neq
+
+  let of_bool ik b = if b then Some(Z.neg Z.one, Z.one) else Some(Z.neg Z.zero, Z.zero)
+
+  let to_bool x = match x with 
+  | None -> None 
+  | Some(z,o) -> Some (not (o =: Z.zero))
+
+  let top_bool = Some (~: Z.zero, Z.one)
+
+  let to_excl_list _ = failwith "undefined"
+
+  let of_excl_list _ = failwith "undefined"
+
+  let is_excl_list _ = failwith "undefined"
+
+  let to_incl_list _ = failwith "undefined"
+
+  let maximal x = match x with 
+  | None -> None 
+  | Some(z,o) -> let no = ~: o in if no <=: z then Some z else Some no
+
+  let minimal x = match x with 
+  | None -> None 
+  | Some(z,o) -> let no = ~: o in if no <=: z then Some no else Some z
+
+  let comparison ik op x y = match x, y with
+    | None, None -> bot_of ik
+    | None, _ | _, None -> raise (ArithmeticOnIntegerBot (Printf.sprintf "%s op %s" (show x) (show y)))
+    | Some (z1, o1), Some (z2, o2) -> 
+      let (t1,f1) = (if op (~: z1) o1 then ((~: z1),o1) else (o1, (~: z1))) in 
+      let (t2,f2) = (if op (~: z2) o2 then ((~: z2),o2) else (o2, (~: z2))) in
+      if op f1 t2  then of_bool ik true 
+      else if not(op t1 f2) then of_bool ik false 
+      else top_bool
+
+  let lt ik x y = comparison ik (<:) x y
+
+  let gt ik x y = comparison ik (>:) x y
+
+  let le ik x y = comparison ik (<=:) x y
+
+  let ge ik x y = comparison ik (>=:) x y
+
+  let eq ik x y = match x, y with
+  | None, None -> bot_of ik
+  | None, _ | _, None -> raise (ArithmeticOnIntegerBot (Printf.sprintf "%s op %s" (show x) (show y)))
+  | Some (z1, o1), Some (z2, o2) -> 
+    let n1 = ~: z1 in 
+    let n2 = ~: z2 in
+    if invar x && invar y && o1 =: o2 then of_bool ik true 
+    else if n1 =: n2 || n1 =: o2 || o1 =: n2 || o1 =: o2 then top_bool 
+    else of_bool ik false
+
+  let ne ik x y = match x, y with
+  | None, None -> bot_of ik
+  | None, _ | _, None -> raise (ArithmeticOnIntegerBot (Printf.sprintf "%s op %s" (show x) (show y)))
+  | Some (z1, o1), Some (z2, o2) -> 
+    let n1 = ~: z1 in 
+    let n2 = ~: z2 in
+    if invar x && invar y && o1 =: o2 then of_bool ik false 
+    else if n1 =: n2 || n1 =: o2 || o1 =: n2 || o1 =: o2 then top_bool 
+    else of_bool ik true
+
+  let lognot ik x = match x with 
+  | None -> None 
+  | Some (z,o) -> Some (o, z)
+
+  let logand ik x y = match x, y with 
+  | None, None -> None 
+  | _, None | None, _ -> raise (ArithmeticOnIntegerBot (Printf.sprintf "%s & %s" (show x) (show y)))
+  | Some(z1, o1), Some(z2, o2) -> Some (z1 |: z2, o1 &: o2)
+
+  let logor ik x y = match x, y with 
+  | None, None -> None 
+  | _, None | None, _ -> raise (ArithmeticOnIntegerBot (Printf.sprintf "%s | %s" (show x) (show y)))
+  | Some(z1, o1), Some(z2, o2) -> Some (z1 &: z2, o1 |: o2)
+
+  let logxor ik x y = match x, y with 
+  | None, None -> None 
+  | _, None | None, _ -> raise (ArithmeticOnIntegerBot (Printf.sprintf "%s ^ %s" (show x) (show y)))
+  | Some(z1, o1), Some(z2, o2) -> Some ((z1 &: z2) |: (o1 &: o2), (z1 &: o2) |: (o1 &: z2))
+
+  let shift_left (ik:ikind) x y = if not(invar y) then failwith "shift_left not possible with unknown number of shifts" 
+    else let z = to_int y in
+      match x, z with 
+    | Some (z, o), Some k -> let n = Z.to_int k in Some ((Z.shift_left z n) |: ((Z.shift_left Z.one n) -: Z.one), Z.shift_left o n)
+    | _, _ -> raise (ArithmeticOnIntegerBot (Printf.sprintf "%s << %s" (show x) (show y)))
+
+  let shift_right (ik:ikind) x y = if not(invar y) then failwith "shift_right not possible with unknown number of shifts" 
+  else let z = to_int y in
+    match x, z with 
+  | Some (z, o), Some k -> let n = Z.to_int k in Some (Z.shift_right z n, Z.shift_right o n)
+  | _, _ -> raise (ArithmeticOnIntegerBot (Printf.sprintf "%s << %s" (show x) (show y)))
+
+  let log f ik i1 i2 =
+    match is_bot i1, is_bot i2 with
+    | true, true -> bot_of ik
+    | true, _
+    | _   , true -> raise (ArithmeticOnIntegerBot (Printf.sprintf "%s op %s" (show i1) (show i2)))
+    | _ ->
+      match to_bool i1, to_bool i2 with
+      | Some x, Some y -> of_bool ik (f x y)
+      | _              -> top_of ik
+
+  let c_logor = log (||)
+  let c_logand = log (&&)
+
+  let log1 f ik i1 =
+    if is_bot i1 then
+      bot_of ik
+    else
+      match to_bool i1 with
+      | Some x -> of_bool ik (f ik x)
+      | _      -> top_of ik
+
+  let c_lognot = log1 (fun _ik -> not)
+
+  let cast_to ?suppress_ovwarn ?torg ?no_ov ik x = failwith "undefined"
+
+  let join ik x y = match x, y with 
+  | None, _ -> y 
+  | _, None -> x 
+  | Some (z1, o1), Some (z2, o2) -> Some (z1 |: z2, o1 |: o2)
+
+  let meet ik x y = match x, y with 
+  | None, _ -> y 
+  | _, None -> x 
+  | Some (z1, o1), Some (z2, o2) -> Some (z1 &: z2, o1 &: o2)
+
+  let narrow _ = failwith "undefined"
+
+  let widen _ = failwith "undefined"
+
+  let starting ?suppress_ovwarn ik x = failwith "undefined"
+
+  let ending ?suppress_ovwarn ik x = failwith "undefined"
+
+  let of_interval ?suppress_ovwarn ik x = failwith "undefined"
+
+  let of_congruence _ = failwith "undefined"
+
+  let is_top_of _ = failwith "undefined"
+
+  let invariant_ikind _ = failwith "undefined"
+
+  let refine_with_congruence _ = failwith "undefined"
+
+  let refine_with_interval _ = failwith "undefined"
+
+  let refine_with_excl_list _ = failwith "undefined"
+
+  let refine_with_incl_list _ = failwith "undefined"
+
+  let project _ = failwith "undefined"
+
+  let arbitrary _ = failwith "undefined"
+
+end
+
 
 (* The old IntDomList had too much boilerplate since we had to edit every function in S when adding a new domain. With the following, we only have to edit the places where fn are applied, i.e., create, mapp, map, map2. You can search for I3 below to see where you need to extend. *)
 (* discussion: https://github.com/goblint/analyzer/pull/188#issuecomment-818928540 *)
@@ -3282,6 +3537,7 @@ module IntDomTupleImpl = struct
   module I3 = SOverflowLifter (Enums)
   module I4 = SOverflowLifter (Congruence)
   module I5 = IntervalSetFunctor (IntOps.BigIntOps)
+  module I6 = SOverflowLifter (Bitfield)
 
   type t = I1.t option * I2.t option * I3.t option * I4.t option * I5.t option
   [@@deriving eq, ord, hash]
