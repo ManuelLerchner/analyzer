@@ -15,6 +15,124 @@ exception ArithmeticOnIntegerBot of string
 
 
 
+(* Custom Tuple6 as Batteries only provides up to Tuple5 *)
+module Tuple6 = struct
+  type ('a,'b,'c,'d,'e,'f) t = 'a * 'b * 'c * 'd * 'e * 'f
+  type 'a enumerable = 'a * 'a * 'a * 'a * 'a * 'a
+  let make a b c d e f= (a, b, c, d, e, f)
+  let first (a,_,_,_,_, _) = a
+  let second (_,b,_,_,_, _) = b
+  let third (_,_,c,_,_, _) = c
+  let fourth (_,_,_,d,_, _) = d
+  let fifth (_,_,_,_,e, _) = e
+  let sixth (_,_,_,_,_, f) = f
+  let map f1 f2 f3 f4 f5 f6 (a,b,c,d,e,f) =
+    let a = f1 a in
+    let b = f2 b in
+    let c = f3 c in
+    let d = f4 d in
+    let e = f5 e in
+    let f = f6 f in
+    (a, b, c, d, e, f)
+  let mapn fn (a,b,c,d,e,f) =
+    let a = fn a in
+    let b = fn b in
+    let c = fn c in
+    let d = fn d in
+    let e = fn e in
+    let f = fn f in
+    (a, b, c, d, e, f)
+  let map1 fn (a, b, c, d, e, f) = (fn a, b, c, d, e, f)
+  let map2 fn (a, b, c, d, e, f) = (a, fn b, c, d, e, f)
+  let map3 fn (a, b, c, d, e, f) = (a, b, fn c, d, e, f)
+  let map4 fn (a, b, c, d, e, f) = (a, b, c, fn d, e, f)
+  let map5 fn (a, b, c, d, e, f) = (a, b, c, d, fn e, f)
+  let map6 fn (a, b, c, d, e, f) = (a, b, c, d, e, fn f)
+  let curry fn a b c d e f= fn (a,b,c,d,e,f)
+  let uncurry fn (a,b,c,d,e,f) = fn a b c d e f
+  let enum (a,b,c,d,e,f) = BatList.enum [a;b;c;d;e;f] (* Make efficient? *)
+  let of_enum e = match BatEnum.get e with
+      None -> failwith "Tuple6.of_enum: not enough elements"
+    | Some a -> match BatEnum.get e with
+        None -> failwith "Tuple6.of_enum: not enough elements"
+      | Some b -> match BatEnum.get e with
+          None -> failwith "Tuple6.of_enum: not enough elements"
+        | Some c -> match BatEnum.get e with
+            None -> failwith "Tuple6.of_enum: not enough elements"
+          | Some d -> match BatEnum.get e with
+              None -> failwith "Tuple6.of_enum: not enough elements"
+            | Some e -> match BatEnum.get e with
+                None -> failwith "Tuple6.of_enum: not enough elements"
+              | Some f -> (a,b,c,d,e,f)
+  let print ?(first="(") ?(sep=",") ?(last=")") print_a print_b print_c print_d print_e print_f out (a,b,c,d,e,f) =
+    BatIO.nwrite out first;
+    print_a out a;
+    BatIO.nwrite out sep;
+    print_b out b;
+    BatIO.nwrite out sep;
+    print_c out c;
+    BatIO.nwrite out sep;
+    print_d out d;
+    BatIO.nwrite out sep;
+    print_e out e;
+    BatIO.nwrite out sep;
+    print_f out f
+    BatIO.nwrite out last
+  let printn ?(first="(") ?(sep=",") ?(last=")") printer out pair =
+    print ~first ~sep ~last printer printer printer printer printer out pair
+  let compare ?(cmp1=Pervasives.compare) ?(cmp2=Pervasives.compare) ?(cmp3=Pervasives.compare) ?(cmp4=Pervasives.compare) ?(cmp5=Pervasives.compare) ?(cmp6=Pervasives.compare) (a1,a2,a3,a4,a5,a6) (b1,b2,b3,b4,b5,b6) =
+    let c1 = cmp1 a1 b1 in
+    if c1 <> 0 then c1 else
+      let c2 = cmp2 a2 b2 in
+      if c2 <> 0 then c2 else
+        let c3 = cmp3 a3 b3 in
+        if c3 <> 0 then c3 else
+          let c4 = cmp4 a4 b4 in
+          if c4 <> 0 then c4 else
+            let c5 = cmp5 a5 b5 in
+            if c5 <> 0 then c5 else
+              cmp5 a6 b6
+  open BatOrd
+  let eq eq1 eq2 eq3 eq4 eq5 eq6 =
+    fun (t1, t2, t3, t4, t5,t6) (t1', t2', t3', t4', t5',t6') ->
+      bin_eq eq1 t1 t1'
+        (bin_eq eq2 t2 t2'
+           (bin_eq eq3 t3 t3'
+              (bin_eq eq4 t4 t4'
+                 (bin_eq eq5 t5 t5' eq6)))) t6 t6'
+  let ord ord1 ord2 ord3 ord4 ord5 ord6 =
+    fun (t1, t2, t3, t4, t5,t6) (t1', t2', t3', t4', t5',t6') ->
+      bin_ord ord1 t1 t1'
+        (bin_ord ord2 t2 t2'
+           (bin_ord ord3 t3 t3'
+              (bin_ord ord4 t4 t4'
+                 (bin_ord ord5 t5 t5' ord6)))) t6 t6'
+  let comp comp1 comp2 comp3 comp4 comp5 comp6 =
+    fun (t1, t2, t3, t4, t5,t6) (t1', t2', t3', t4', t5',t6') ->
+      let c1 = comp1 t1 t1' in
+      if c1 <> 0 then c1 else
+        let c2 = comp2 t2 t2' in
+        if c2 <> 0 then c2 else
+          let c3 = comp3 t3 t3' in
+          if c3 <> 0 then c3 else
+            let c4 = comp4 t4 t4' in
+            if c4 <> 0 then c4 else
+              let c5 = comp5 t5 t5' in
+              if c5 <> 0 then c5 else
+                comp6 t6 t6'
+  module Eq (A : Eq) (B : Eq) (C : Eq) (D : Eq) (E : Eq) (F : Eq) = struct
+    type t = A.t * B.t * C.t * D.t * E.t * F.t
+    let eq = eq A.eq B.eq C.eq D.eq E.eq F.eq
+  end
+  module Ord (A : Ord) (B : Ord) (C : Ord) (D : Ord) (E : Ord ) (F : Ord) = struct
+    type t = A.t * B.t * C.t * D.t * E.t * F.t
+    let ord = ord A.ord B.ord C.ord D.ord E.ord F.ord
+  end
+  module Comp (A : Comp) (B : Comp) (C : Comp) (D : Comp) (E : Comp ) (F : Comp) = struct
+    type t = A.t * B.t * C.t * D.t * E.t * F.t
+    let compare = comp A.compare B.compare C.compare D.compare E.compare F.compare
+  end
+end
 
 (** Define records that hold mutable variables representing different Configuration values.
   * These values are used to keep track of whether or not the corresponding Config values are en-/disabled  *)
@@ -1047,6 +1165,276 @@ struct
   let project ik p t = t
 end
 
+module BitfieldArith (Ints_t : IntOps.IntOps) = struct 
+  
+  let zero_mask = Ints_t.zero
+  let one_mask = Ints_t.lognot zero_mask
+
+  let of_int v = (Ints_t.lognot v, v)
+
+  let lognot (z,o) = (o,z)
+
+  let logand (z1,o1) (z2,o2) = (Ints_t.logor z1 z2, Ints_t.logand o1 o2)
+
+  let logor (z1,o1)  (z2,o2) = (Ints_t.logand z1 z2, Ints_t.logor o1 o2)
+
+  let logxor (z1,o1)  (z2,o2) = (Ints_t.logor (Ints_t.logand z1 z2) (Ints_t.logand o1 o2), 
+                                 Ints_t.logor (Ints_t.logand z1 o2) (Ints_t.logand o1 z2))
+
+  let shift_left (z1,o1) (z2,o2) = failwith "Not implemented"
+
+  let shift_right (z1,o1) (z2,o2) = failwith "Not implemented"
+
+  let join (z1,o1) (z2,o2) = (Ints_t.logor z1 z2, Ints_t.logor o1 o2)
+
+  let meet (z1,o1) (z2,o2) = (Ints_t.logand z1 z2, Ints_t.logand o1 o2)
+
+  let nabla x y= if x = Ints_t.logor x y then x else one_mask
+
+  let widen (z1,o1) (z2,o2) = (nabla z1 z2, nabla o1 o2)
+
+  let zero = of_int (Ints_t.of_int 0)
+  let one = of_int (Ints_t.of_int 1)
+  
+  let topbool = join zero one
+
+  let eq (z1,o1) (z2,o2) = (Ints_t.equal z1 z2 && Ints_t.equal o1 o2)
+
+  let includes (z1,o1) (z2,o2) = (Ints_t.logor (Ints_t.lognot z1 ) z2 = one_mask) && 
+                                 (Ints_t.logor (Ints_t.lognot o1 ) o2 = one_mask)
+
+  let is_constant (z,o) = (Ints_t.logxor z o) = one_mask
+
+end
+
+module BitfieldFunctor (Ints_t : IntOps.IntOps): SOverflow with type int_t = Ints_t.t and type t = (Ints_t.t * Ints_t.t) = struct
+  let name () = "bitfield"
+  type int_t = Ints_t.t
+  type t = (Ints_t.t * Ints_t.t) [@@deriving eq, ord, hash]
+  module BArith = BitfieldArith (Ints_t)
+
+
+  let top () = (Ints_t.lognot (Ints_t.zero),  Ints_t.lognot (Ints_t.zero))
+  let top_of ik = top ()
+  let bot () = (Ints_t.zero, Ints_t.zero)
+  let bot_of ik = bot () 
+
+  let show t = 
+    if t = bot () then "bot" else
+    if t = top () then "top" else
+      let (z,o) = t in
+      if BArith.is_constant t then 
+        Format.sprintf "[%08X, %08X] (unique: %d)" (Ints_t.to_int z) (Ints_t.to_int o) (Ints_t.to_int o)
+      else 
+        Format.sprintf "[%08X, %08X]" (Ints_t.to_int z) (Ints_t.to_int o)
+
+  include Std (struct type nonrec t = t let name = name let top_of = top_of let bot_of = bot_of let show = show let equal = equal end)
+
+  let join ik x y = BArith.join x y
+
+  let meet ik x y = BArith.meet x y
+
+  let range ik = BatTuple.Tuple2.mapn Ints_t.of_bigint (Size.range ik)
+
+  let norm ?(suppress_ovwarn=false) ?(cast=false) ik (z,o)  =
+    M.trace "bitfield" "norm";
+    ((z,o), {underflow=false; overflow=false})
+
+  let to_int (z,o) = if is_bot (z,o) then None else
+      if BArith.is_constant (z,o) then Some o
+      else None
+
+  let equal_to i (u,l) = 
+    M.trace "bitfield" "equal_to";
+    if BArith.of_int i = (u,l) then `Eq
+    else if BArith.includes (u,l) (BArith.of_int i) then `Top
+    else `Neq
+
+  let of_interval ?(suppress_ovwarn=false) ik (x,y) =
+    M.trace "bitfield" "of_interval";
+    failwith "Not implemented"
+
+  let of_int ik (x: int_t) = (BArith.of_int x, {underflow=false; overflow=false})
+
+  let of_bool _ik = function true -> BArith.one | false -> BArith.zero
+  
+  let to_bool d=
+      M.trace "bitfield" "to_bool";
+    if not (BArith.includes BArith.zero d ) then Some true
+    else if BArith.eq d BArith.zero then Some false
+    else None
+
+  let starting ?(suppress_ovwarn=false) ik n = 
+    M.trace "bitfield" "starting";
+    (top(), {underflow=false; overflow=false})
+  
+  let ending ?(suppress_ovwarn=false) ik n = 
+    M.trace "bitfield" "ending";
+    (top(), {underflow=false; overflow=false})
+  
+  let cast_to ?(suppress_ovwarn=false) ?torg ?no_ov t = 
+    M.trace "bitfield" "cast_to";
+    norm ~cast:true t (* norm does all overflow handling *)
+
+  let widen ik x y = BArith.widen x y
+
+  let narrow ik x y = meet ik x y  
+
+  let log1 f ik i1 = match to_bool i1 with
+    | None -> top_of ik
+    | Some x -> of_bool ik (f x)
+
+  let log2 f ik i1 i2 = match (to_bool i1, to_bool i2) with
+    | None, None -> top_of ik
+    | None, Some x | Some x, None -> of_bool ik x
+    | Some x, Some y -> of_bool ik (f x y)
+
+  let c_logor ik i1 i2 = log2 (||) ik i1 i2
+      
+  let c_logand ik i1 i2 = log2 (&&) ik i1 i2
+
+  let c_lognot ik i1 = log1 not ik i1
+
+  let xor a b = (a && not b) || (not a && b)
+
+  let logxor ik i1 i2 = BArith.logxor i1 i2
+
+  let logand ik i1 i2 = BArith.logand i1 i2
+
+  let logor  ik i1 i2 = BArith.logor i1 i2
+
+  let lognot ik i1 = BArith.lognot i1
+
+  let neg ?no_ov ik v =
+    M.trace "bitfield" "neg";
+    failwith "Not implemented"
+
+  let shift_right ik a b = 
+    M.trace "bitfield" "shift_right";
+    failwith "Not implemented"
+
+  let shift_left ik a b =
+    M.trace "bitfield" "shift_left";
+    failwith "Not implemented"
+
+  let add ?no_ov ik x y=(top_of ik,{underflow=false; overflow=false})
+  let mul ?no_ov ik x y=(top_of ik,{underflow=false; overflow=false})
+  let sub ?no_ov ik x y=(top_of ik,{underflow=false; overflow=false})
+
+  let shift_left ik a b =(top_of ik,{underflow=false; overflow=false})
+
+  let rem ik x y = 
+    M.trace "bitfield" "rem";
+    top_of ik
+
+  let rec div ?no_ov ik x y =(top_of ik,{underflow=false; overflow=false})
+
+
+  let eq ik x y =
+    M.trace "bitfield" "eq";
+    if BArith.is_constant x && BArith.is_constant y then of_bool ik (BArith.eq x y) 
+                else if not (BArith.includes x y || (BArith.includes y x)) then of_bool ik false
+                else BArith.topbool
+
+    let ne ik x y =
+      if BArith.is_constant x && BArith.is_constant y then of_bool ik (not (BArith.eq x y)) 
+      else if not (BArith.includes x y || (BArith.includes y x)) then of_bool ik true
+      else BArith.topbool
+
+
+  let leq (x:t) (y:t) = BArith.includes x y
+
+  type comparison_result = 
+    | Less
+    | LessOrEqual
+    | Greater
+    | GreaterOrEqual
+    | Unknown
+
+let compare_bitfields ?(strict=true) ?(signed=false) (z1,o1) (z2,o2) =
+  M.trace "bitfield" "compare_bitfields";
+  let bit_length = Sys.word_size - 2 in  (* Set bit length based on system word size *)
+  let sign_bit_position = if signed then bit_length - 1 else -1 in
+  let result = ref Unknown in
+
+  (* Helper function to check bits at each position *)
+  let get_bit mask pos = ((Ints_t.to_int mask) lsr pos) land 1 = 1 in
+
+  (* Iterate from Most Significant Bit (MSB) to Least Significant Bit (LSB) *)
+  for i = bit_length - 1 downto 0 do
+    let bit1_zero = get_bit z1 i in
+    let bit1_one = get_bit o1 i in
+    let bit2_zero = get_bit z2 i in
+    let bit2_one = get_bit o2 i in
+
+    (* Check if bits at position i are both known *)
+    if (bit1_zero || bit1_one) && (bit2_zero || bit2_one) then
+      if bit1_zero && bit2_one then begin
+        result := if strict then Less else LessOrEqual;
+        raise Exit
+      end else if bit1_one && bit2_zero then begin
+        result := if strict then Greater else GreaterOrEqual;
+        raise Exit
+      end else if (bit1_one = bit2_one) && (bit1_zero = bit2_zero) then
+        () (* Equal bits, continue checking lower bits *)
+      else
+        result := Unknown (* Unknown bit situation, stop *)
+    else
+      result := Unknown; 
+      raise Exit
+  done;
+
+  (* Handle sign bit adjustment if signed *)
+  if signed && !result <> Unknown then
+    match !result with
+    | Less when get_bit o1 sign_bit_position <> get_bit o2 sign_bit_position -> result := Greater
+    | Greater when get_bit o1 sign_bit_position <> get_bit o2 sign_bit_position -> result := Less
+    | _ -> ();
+  else ();
+
+  (* Handle non-strict inequalities for unknowns *)
+  if not strict && !result = Unknown then begin
+    if (Ints_t.logand z1 o2) =  Ints_t.zero then result := LessOrEqual
+    else if (Ints_t.logand o1 z2) = Ints_t.zero then result := GreaterOrEqual
+  end;
+  !result
+
+  let ge ik x y = if compare_bitfields x y = GreaterOrEqual then of_bool ik true else BArith.topbool
+
+  let le ik x y = if compare_bitfields x y = LessOrEqual then of_bool ik true else BArith.topbool
+
+  let gt ik x y = if compare_bitfields x y = Greater then of_bool ik true else BArith.topbool
+
+  let lt ik x y = if compare_bitfields x y = Less then of_bool ik true else BArith.topbool
+
+  let invariant_ikind e ik = 
+    M.trace "bitfield" "invariant_ikind";
+    failwith "Not implemented"
+
+  let arbitrary ik = 
+    M.trace "bitfield" "arbitrary";
+    failwith "Not implemented"
+    
+
+  let refine_with_congruence ik (intv : t) (cong : (int_t * int_t ) option) : t =
+    M.trace "bitfield" "refine_with_congruence";
+    top_of ik
+  
+  let refine_with_interval ik a b = 
+    M.trace "bitfield" "refine_with_interval";
+    top_of ik
+
+  let refine_with_excl_list ik (intv : t) (excl : (int_t list * (int64 * int64)) option) : t = 
+    M.trace "bitfield" "refine_with_excl_list";
+    top_of ik
+
+  let refine_with_incl_list ik (intv: t) (incl : (int_t list) option) : t =
+    M.trace "bitfield" "refine_with_incl_list";
+    top_of ik
+
+  let project ik p t = t
+end
+
 (** IntervalSetFunctor that is not just disjunctive completion of intervals, but attempts to be precise for wraparound arithmetic for unsigned types *)
 module IntervalSetFunctor (Ints_t : IntOps.IntOps): SOverflow with type int_t = Ints_t.t and type t = (Ints_t.t * Ints_t.t) list =
 struct
@@ -1611,6 +1999,7 @@ module SOverflowUnlifter (D : SOverflow) : S with type int_t = D.int_t and type 
 end
 
 module IntIkind = struct let ikind () = Cil.IInt end
+module Bitfield = BitfieldFunctor (IntOps.BigIntOps)
 module Interval = IntervalFunctor (IntOps.BigIntOps)
 module Interval32 = IntDomWithDefaultIkind (IntDomLifter (SOverflowUnlifter (IntervalFunctor (IntOps.Int64Ops)))) (IntIkind)
 module IntervalSet = IntervalSetFunctor (IntOps.BigIntOps)
@@ -3282,15 +3671,16 @@ module IntDomTupleImpl = struct
   module I3 = SOverflowLifter (Enums)
   module I4 = SOverflowLifter (Congruence)
   module I5 = IntervalSetFunctor (IntOps.BigIntOps)
+  module I6 = Bitfield
 
-  type t = I1.t option * I2.t option * I3.t option * I4.t option * I5.t option
+  type t = I1.t option * I2.t option * I3.t option * I4.t option * I5.t option * I6.t option
   [@@deriving eq, ord, hash]
 
   let name () = "intdomtuple"
 
   (* The Interval domain can lead to too many contexts for recursive functions (top is [min,max]), but we don't want to drop all ints as with `ana.base.context.int`. TODO better solution? *)
-  let no_interval = Tuple5.map2 (const None)
-  let no_intervalSet = Tuple5.map5 (const None)
+  let no_interval = Tuple6.map2 (const None)
+  let no_intervalSet = Tuple6.map5 (const None)
 
   type 'a m = (module SOverflow with type t = 'a)
   type 'a m2 = (module SOverflow with type t = 'a and type int_t = int_t )
@@ -3308,14 +3698,14 @@ module IntDomTupleImpl = struct
   type poly2 = {f2: 'a. 'a m -> ?no_ov:bool -> 'a -> 'a -> 'a} [@@unboxed]
   type poly2_ovc = {f2_ovc: 'a. 'a m -> ?no_ov:bool -> 'a -> 'a -> 'a * overflow_info } [@@unboxed]
   type 'b poly3 = { f3: 'a. 'a m -> 'a option } [@@unboxed] (* used for projection to given precision *)
-  let create r x ((p1, p2, p3, p4, p5): int_precision) =
+  let create r x ((p1, p2, p3, p4, p5, p6): int_precision) =
     let f b g = if b then Some (g x) else None in
-    f p1 @@ r.fi (module I1), f p2 @@ r.fi (module I2), f p3 @@ r.fi (module I3), f p4 @@ r.fi (module I4), f p5 @@ r.fi (module I5)
+    f p1 @@ r.fi (module I1), f p2 @@ r.fi (module I2), f p3 @@ r.fi (module I3), f p4 @@ r.fi (module I4), f p5 @@ r.fi (module I5), f p6 @@ r.fi (module I6)
   let create r x = (* use where values are introduced *)
     create r x (int_precision_from_node_or_config ())
-  let create2 r x ((p1, p2, p3, p4, p5): int_precision) =
+  let create2 r x ((p1, p2, p3, p4, p5, p6): int_precision) =
     let f b g = if b then Some (g x) else None in
-    f p1 @@ r.fi2 (module I1), f p2 @@ r.fi2 (module I2), f p3 @@ r.fi2 (module I3), f p4 @@ r.fi2 (module I4), f p5 @@ r.fi2 (module I5)
+    f p1 @@ r.fi2 (module I1), f p2 @@ r.fi2 (module I2), f p3 @@ r.fi2 (module I3), f p4 @@ r.fi2 (module I4), f p5 @@ r.fi2 (module I5), f p6 @@ r.fi2 (module I6)
   let create2 r x = (* use where values are introduced *)
     create2 r x (int_precision_from_node_or_config ())
 
@@ -3334,13 +3724,13 @@ module IntDomTupleImpl = struct
     );
     no_ov
 
-  let create2_ovc ik r x ((p1, p2, p3, p4, p5): int_precision) =
+  let create2_ovc ik r x ((p1, p2, p3, p4, p5, p6): int_precision) =
     let f b g = if b then Some (g x) else None in
     let map x = Option.map fst x in
     let intv =  f p2 @@ r.fi2_ovc (module I2) in
     let intv_set = f p5 @@ r.fi2_ovc (module I5) in
     ignore (check_ov ~cast:false ik intv intv_set);
-    map @@ f p1 @@ r.fi2_ovc (module I1), map @@ f p2 @@ r.fi2_ovc (module I2), map @@ f p3 @@ r.fi2_ovc (module I3), map @@ f p4 @@ r.fi2_ovc (module I4), map @@ f p5 @@ r.fi2_ovc (module I5)
+    map @@ f p1 @@ r.fi2_ovc (module I1), map @@ f p2 @@ r.fi2_ovc (module I2), map @@ f p3 @@ r.fi2_ovc (module I3), map @@ f p4 @@ r.fi2_ovc (module I4), map @@ f p5 @@ r.fi2_ovc (module I5), map @@ f p6 @@ r.fi2_ovc (module I6)
 
   let create2_ovc ik r x = (* use where values are introduced *)
     create2_ovc ik r x (int_precision_from_node_or_config ())
@@ -3349,25 +3739,27 @@ module IntDomTupleImpl = struct
   let opt_map2 f ?no_ov =
     curry @@ function Some x, Some y -> Some (f ?no_ov x y) | _ -> None
 
-  let to_list x = Tuple5.enum x |> List.of_enum |> List.filter_map identity (* contains only the values of activated domains *)
+  let to_list x = Tuple6.enum x |> List.of_enum |> List.filter_map identity (* contains only the values of activated domains *)
   let to_list_some x = List.filter_map identity @@ to_list x (* contains only the Some-values of activated domains *)
 
   let exists = function
-    | (Some true, _, _, _, _)
-    | (_, Some true, _, _, _)
-    | (_, _, Some true, _, _)
-    | (_, _, _, Some true, _)
-    | (_, _, _, _, Some true) ->
+    | (Some true, _, _, _, _, _)
+    | (_, Some true, _, _, _, _)
+    | (_, _, Some true, _, _, _)
+    | (_, _, _, Some true, _, _)
+    | (_, _, _, _, Some true, _)
+    | (_, _, _, _, _, Some true) ->
       true
     | _ ->
       false
 
   let for_all = function
-    | (Some false, _, _, _, _)
-    | (_, Some false, _, _, _)
-    | (_, _, Some false, _, _)
-    | (_, _, _, Some false, _)
-    | (_, _, _, _, Some false) ->
+    | (Some false, _, _, _, _, _)
+    | (_, Some false, _, _, _, _)
+    | (_, _, Some false, _, _, _)
+    | (_, _, _, Some false, _, _)
+    | (_, _, _, _, Some false, _)
+    | (_, _, _, _, _, Some false) ->
       false
     | _ ->
       true
@@ -3385,7 +3777,7 @@ module IntDomTupleImpl = struct
   let of_interval ?(suppress_ovwarn=false) ik = create2_ovc ik { fi2_ovc = fun (type a) (module I:SOverflow with type t = a and type int_t = int_t) -> I.of_interval ~suppress_ovwarn ik }
   let of_congruence ik = create2 { fi2 = fun (type a) (module I:SOverflow with type t = a and type int_t = int_t) -> I.of_congruence ik }
 
-  let refine_with_congruence ik ((a, b, c, d, e) : t) (cong : (int_t * int_t) option) : t=
+  let refine_with_congruence ik ((a, b, c, d, e, f) : t) (cong : (int_t * int_t) option) : t=
     let opt f a =
       curry @@ function Some x, y -> Some (f a x y) | _ -> None
     in
@@ -3393,9 +3785,10 @@ module IntDomTupleImpl = struct
     , opt I2.refine_with_congruence ik b cong
     , opt I3.refine_with_congruence ik c cong
     , opt I4.refine_with_congruence ik d cong
-    , opt I5.refine_with_congruence ik e cong)
+    , opt I5.refine_with_congruence ik e cong
+    , opt I6.refine_with_congruence ik f cong)
 
-  let refine_with_interval ik (a, b, c, d, e) intv =
+  let refine_with_interval ik (a, b, c, d, e, f : t) intv =
     let opt f a =
       curry @@ function Some x, y -> Some (f a x y) | _ -> None
     in
@@ -3403,9 +3796,10 @@ module IntDomTupleImpl = struct
     , opt I2.refine_with_interval ik b intv
     , opt I3.refine_with_interval ik c intv
     , opt I4.refine_with_interval ik d intv
-    , opt I5.refine_with_interval ik e intv )
+    , opt I5.refine_with_interval ik e intv
+    , opt I6.refine_with_interval ik f intv )
 
-  let refine_with_excl_list ik (a, b, c, d, e) excl =
+  let refine_with_excl_list ik (a, b, c, d, e, f : t) excl =
     let opt f a =
       curry @@ function Some x, y -> Some (f a x y) | _ -> None
     in
@@ -3413,9 +3807,10 @@ module IntDomTupleImpl = struct
     , opt I2.refine_with_excl_list ik b excl
     , opt I3.refine_with_excl_list ik c excl
     , opt I4.refine_with_excl_list ik d excl
-    , opt I5.refine_with_excl_list ik e excl )
+    , opt I5.refine_with_excl_list ik e excl
+    , opt I6.refine_with_excl_list ik f excl )
 
-  let refine_with_incl_list ik (a, b, c, d, e) incl =
+  let refine_with_incl_list ik (a, b, c, d, e, f : t) incl =
     let opt f a =
       curry @@ function Some x, y -> Some (f a x y) | _ -> None
     in
@@ -3423,25 +3818,28 @@ module IntDomTupleImpl = struct
     , opt I2.refine_with_incl_list ik b incl
     , opt I3.refine_with_incl_list ik c incl
     , opt I4.refine_with_incl_list ik d incl
-    , opt I5.refine_with_incl_list ik e incl )
+    , opt I5.refine_with_incl_list ik e incl
+    , opt I6.refine_with_incl_list ik f incl )
 
 
-  let mapp r (a, b, c, d, e) =
+  let mapp r (a, b, c, d, e, f : t) =
     let map = BatOption.map in
     ( map (r.fp (module I1)) a
     , map (r.fp (module I2)) b
     , map (r.fp (module I3)) c
     , map (r.fp (module I4)) d
-    , map (r.fp (module I5)) e)
+    , map (r.fp (module I5)) e
+    , map (r.fp (module I6)) f)
 
 
-  let mapp2 r (a, b, c, d, e) =
+  let mapp2 r (a, b, c, d, e, f : t) =
     BatOption.
       ( map (r.fp2 (module I1)) a
       , map (r.fp2 (module I2)) b
       , map (r.fp2 (module I3)) c
       , map (r.fp2 (module I4)) d
-      , map (r.fp2 (module I5)) e)
+      , map (r.fp2 (module I5)) e
+      , map (r.fp2 (module I6)) f)
 
 
   (* exists/for_all *)
@@ -3450,12 +3848,13 @@ module IntDomTupleImpl = struct
   let is_top_of ik = for_all % mapp { fp = fun (type a) (module I:SOverflow with type t = a) -> I.is_top_of ik }
   let is_excl_list = exists % mapp { fp = fun (type a) (module I:SOverflow with type t = a) -> I.is_excl_list }
 
-  let map2p r (xa, xb, xc, xd, xe) (ya, yb, yc, yd, ye) =
+  let map2p r (xa, xb, xc, xd, xe, xf: t) (ya, yb, yc, yd, ye, yf: t) =
     ( opt_map2 (r.f2p (module I1)) xa ya
     , opt_map2 (r.f2p (module I2)) xb yb
     , opt_map2 (r.f2p (module I3)) xc yc
     , opt_map2 (r.f2p (module I4)) xd yd
-    , opt_map2 (r.f2p (module I5)) xe ye)
+    , opt_map2 (r.f2p (module I5)) xe ye
+    , opt_map2 (r.f2p (module I6)) xf yf)
 
   (* f2p: binary projections *)
   let (%%) f g x = f % (g x) (* composition for binary function g *)
@@ -3509,13 +3908,13 @@ module IntDomTupleImpl = struct
     let maybe reffun ik domtup dom =
       match dom with Some y -> reffun ik domtup y | _ -> domtup
     in
-    [(fun (a, b, c, d, e) -> refine_with_excl_list ik (a, b, c, d, e) (to_excl_list (a, b, c, d, e)));
-     (fun (a, b, c, d, e) -> refine_with_incl_list ik (a, b, c, d, e) (to_incl_list (a, b, c, d, e)));
-     (fun (a, b, c, d, e) -> maybe refine_with_interval ik (a, b, c, d, e) b); (* TODO: get interval across all domains with minimal and maximal *)
-     (fun (a, b, c, d, e) -> maybe refine_with_congruence ik (a, b, c, d, e) d)]
+    [(fun (a, b, c, d, e, f) -> refine_with_excl_list ik (a, b, c, d, e, f) (to_excl_list (a, b, c, d, e, f)));
+     (fun (a, b, c, d, e, f) -> refine_with_incl_list ik (a, b, c, d, e, f) (to_incl_list (a, b, c, d, e, f)));
+     (fun (a, b, c, d, e, f) -> maybe refine_with_interval ik (a, b, c, d, e, f) b); (* TODO: get interval across all domains with minimal and maximal *)
+     (fun (a, b, c, d, e, f) -> maybe refine_with_congruence ik (a, b, c, d, e, f) d)]
 
-  let refine ik ((a, b, c, d, e) : t ) : t =
-    let dt = ref (a, b, c, d, e) in
+  let refine ik ((a, b, c, d, e, f) : t ) : t =
+    let dt = ref (a, b, c, d, e, f) in
     (match get_refinement () with
      | "never" -> ()
      | "once" ->
@@ -3534,7 +3933,7 @@ module IntDomTupleImpl = struct
 
 
   (* map with overflow check *)
-  let mapovc ?(suppress_ovwarn=false) ?(cast=false) ik r (a, b, c, d, e) =
+  let mapovc ?(suppress_ovwarn=false) ?(cast=false) ik r (a, b, c, d, e, f :t) =
     let map f ?no_ov = function Some x -> Some (f ?no_ov x) | _ -> None  in
     let intv = map (r.f1_ovc (module I2)) b in
     let intv_set = map (r.f1_ovc (module I5)) e in
@@ -3545,10 +3944,11 @@ module IntDomTupleImpl = struct
       , BatOption.map fst intv
       , map (fun ?no_ov x -> r.f1_ovc ?no_ov (module I3) x |> fst) c
       , map (fun ?no_ov x -> r.f1_ovc ?no_ov (module I4) x |> fst) ~no_ov d
-      , BatOption.map fst intv_set )
+      , BatOption.map fst intv_set 
+      , map (fun ?no_ov x -> r.f1_ovc ?no_ov (module I6) x |> fst) f)
 
   (* map2 with overflow check *)
-  let map2ovc ?(cast=false) ik r (xa, xb, xc, xd, xe) (ya, yb, yc, yd, ye) =
+  let map2ovc ?(cast=false) ik r (xa, xb, xc, xd, xe, xf : t) (ya, yb, yc, yd, ye, yf: t) =
     let intv = opt_map2 (r.f2_ovc (module I2)) xb yb in
     let intv_set = opt_map2 (r.f2_ovc (module I5)) xe ye in
     let no_ov = check_ov ~cast ik intv intv_set in
@@ -3558,24 +3958,27 @@ module IntDomTupleImpl = struct
       , BatOption.map fst intv
       , opt_map2 (fun ?no_ov x y -> r.f2_ovc ?no_ov (module I3) x y |> fst) xc yc
       , opt_map2 (fun ?no_ov x y -> r.f2_ovc ?no_ov (module I4) x y |> fst) ~no_ov:no_ov xd yd
-      , BatOption.map fst intv_set )
+      , BatOption.map fst intv_set 
+      , opt_map2 (fun ?no_ov x y -> r.f2_ovc ?no_ov (module I6) x y |> fst) xf yf)
 
-  let map ik r (a, b, c, d, e) =
+  let map ik r (a, b, c, d, e, f: t) =
     refine ik
       BatOption.
         ( map (r.f1 (module I1)) a
         , map (r.f1 (module I2)) b
         , map (r.f1 (module I3)) c
         , map (r.f1 (module I4)) d
-        , map (r.f1 (module I5)) e)
+        , map (r.f1 (module I5)) e
+        , map (r.f1 (module I6)) f)
 
-  let map2 ?(norefine=false) ik r (xa, xb, xc, xd, xe) (ya, yb, yc, yd, ye) =
+  let map2 ?(norefine=false) ik r (xa, xb, xc, xd, xe, xf : t) (ya, yb, yc, yd, ye ,yf: t) =
     let r =
       ( opt_map2 (r.f2 (module I1)) xa ya
       , opt_map2 (r.f2 (module I2)) xb yb
       , opt_map2 (r.f2 (module I3)) xc yc
       , opt_map2 (r.f2 (module I4)) xd yd
-      , opt_map2 (r.f2 (module I5)) xe ye)
+      , opt_map2 (r.f2 (module I5)) xe ye
+      , opt_map2 (r.f2 (module I6)) xf yf)
     in
     if norefine then r else refine ik r
 
@@ -3595,7 +3998,7 @@ module IntDomTupleImpl = struct
 
   (* fp: projections *)
   let equal_to i x =
-    let xs = mapp2 { fp2 = fun (type a) (module I:SOverflow with type t = a and type int_t = int_t) -> I.equal_to i } x |> Tuple5.enum |> List.of_enum |> List.filter_map identity in
+    let xs = mapp2 { fp2 = fun (type a) (module I:SOverflow with type t = a and type int_t = int_t) -> I.equal_to i } x |> Tuple6.enum |> List.of_enum |> List.filter_map identity in
     if List.mem `Eq xs then `Eq else
     if List.mem `Neq xs then `Neq else
       `Top
@@ -3615,12 +4018,13 @@ module IntDomTupleImpl = struct
   (* `map/opt_map` are used by `project` *)
   let opt_map b f =
     curry @@ function None, true -> f | x, y when y || b -> x | _ -> None
-  let map ~keep r (i1, i2, i3, i4, i5) (b1, b2, b3, b4, b5) =
+  let map ~keep r (i1, i2, i3, i4, i5, i6) (b1, b2, b3, b4, b5 ,b6) =
     ( opt_map keep (r.f3 (module I1)) i1 b1
     , opt_map keep (r.f3 (module I2)) i2 b2
     , opt_map keep (r.f3 (module I3)) i3 b3
     , opt_map keep (r.f3 (module I4)) i4 b4
-    , opt_map keep (r.f3 (module I5)) i5 b5 )
+    , opt_map keep (r.f3 (module I5)) i5 b5
+    , opt_map keep (r.f3 (module I6)) i6 b6 )
 
   (** Project tuple t to precision p
    * We have to deactivate IntDomains after the refinement, since we might
@@ -3723,7 +4127,7 @@ module IntDomTupleImpl = struct
     | Some v when not (GobConfig.get_bool "dbg.full-output") -> BatPrintf.fprintf f "<value>\n<data>\n%s\n</data>\n</value>\n" (Z.to_string v)
     | _ -> BatPrintf.fprintf f "<value>\n<data>\n%s\n</data>\n</value>\n" (show x)
 
-  let invariant_ikind e ik ((_, _, _, x_cong, x_intset) as x) =
+  let invariant_ikind e ik ((_, _, _, x_cong, x_intset, _) as x) =
     (* TODO: do refinement before to ensure incl_list being more precise than intervals, etc (https://github.com/goblint/analyzer/pull/1517#discussion_r1693998515), requires refine functions to actually refine that *)
     let simplify_int fallback =
       match to_int x with
@@ -3765,10 +4169,10 @@ module IntDomTupleImpl = struct
     | "all" -> simplify_int simplify_all
     | _ -> assert false
 
-  let arbitrary ik = QCheck.(set_print show @@ tup5 (option (I1.arbitrary ik)) (option (I2.arbitrary ik)) (option (I3.arbitrary ik)) (option (I4.arbitrary ik)) (option (I5.arbitrary ik)))
+  let arbitrary ik = QCheck.(set_print show @@ tup6 (option (I1.arbitrary ik)) (option (I2.arbitrary ik)) (option (I3.arbitrary ik)) (option (I4.arbitrary ik)) (option (I5.arbitrary ik)) (option (I6.arbitrary ik)))
 
-  let relift (a, b, c, d, e) =
-    (Option.map I1.relift a, Option.map I2.relift b, Option.map I3.relift c, Option.map I4.relift d, Option.map I5.relift e)
+  let relift (a, b, c, d, e, f : t) =
+    (Option.map I1.relift a, Option.map I2.relift b, Option.map I3.relift c, Option.map I4.relift d, Option.map I5.relift e, Option.map I6.relift f)
 end
 
 module IntDomTuple =
