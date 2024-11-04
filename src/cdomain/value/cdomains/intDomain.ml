@@ -1180,10 +1180,18 @@ module BitfieldArith (Ints_t : IntOps.IntOps) = struct
 
   let logxor (z1,o1)  (z2,o2) = (Ints_t.logor (Ints_t.logand z1 z2) (Ints_t.logand o1 o2), 
                                  Ints_t.logor (Ints_t.logand z1 o2) (Ints_t.logand o1 z2))
+                                 
+  let is_constant (z,o) = (Ints_t.logxor z o) = one_mask
 
-  let shift_left (z1,o1) (z2,o2) = failwith "Not implemented"
+  let shift_left (z1,o1) y = if is_constant y then 
+    let (_, n) = y in 
+    let t1 = Ints_t.logor (Ints_t.shift_left z1 (Ints_t.to_int n)) (Ints_t.lognot (Ints_t.shift_left one_mask (Ints_t.to_int n))) in 
+    let t2 = Ints_t.shift_left o1 (Ints_t.to_int n) in
+    M.trace "bitfield" "%s shift_left %i results in %s"(Format.sprintf "[%08X, %08X]" (Ints_t.to_int z1) (Ints_t.to_int o1)) (Ints_t.to_int n) (Format.sprintf "[%08X, %08X]" (Ints_t.to_int t1) (Ints_t.to_int t2));
+    (t1, t2)
+   else failwith "Not implemented"
 
-  let shift_right (z1,o1) (z2,o2) = failwith "Not implemented"
+  let shift_right (z1,o1) y = failwith "Not implemented"
 
   let join (z1,o1) (z2,o2) = (Ints_t.logor z1 z2, Ints_t.logor o1 o2)
 
@@ -1203,7 +1211,6 @@ module BitfieldArith (Ints_t : IntOps.IntOps) = struct
   let includes (z1,o1) (z2,o2) = (Ints_t.logor (Ints_t.lognot z1 ) z2 = one_mask) && 
                                  (Ints_t.logor (Ints_t.lognot o1 ) o2 = one_mask)
 
-  let is_constant (z,o) = (Ints_t.logxor z o) = one_mask
 
 end
 
@@ -1237,7 +1244,7 @@ module BitfieldFunctor (Ints_t : IntOps.IntOps): SOverflow with type int_t = Int
   let range ik = BatTuple.Tuple2.mapn Ints_t.of_bigint (Size.range ik)
 
   let norm ?(suppress_ovwarn=false) ?(cast=false) ik (z,o)  =
-    M.trace "bitfield" "norm";
+    M.trace "bitfield" "norm %a" pretty (z,o);
     ((z,o), {underflow=false; overflow=false})
 
   let to_int (z,o) = if is_bot (z,o) then None else
@@ -1245,7 +1252,7 @@ module BitfieldFunctor (Ints_t : IntOps.IntOps): SOverflow with type int_t = Int
       else None
 
   let equal_to i (u,l) = 
-    M.trace "bitfield" "equal_to";
+    M.trace "bitfield" "%a equal_to %a" pretty (i, BArith.zero_mask) pretty (u,l);
     if BArith.of_int i = (u,l) then `Eq
     else if BArith.includes (u,l) (BArith.of_int i) then `Top
     else `Neq
@@ -1259,7 +1266,7 @@ module BitfieldFunctor (Ints_t : IntOps.IntOps): SOverflow with type int_t = Int
   let of_bool _ik = function true -> BArith.one | false -> BArith.zero
   
   let to_bool d=
-      M.trace "bitfield" "to_bool";
+      M.trace "bitfield" "to_bool %a" pretty d;
     if not (BArith.includes BArith.zero d ) then Some true
     else if BArith.eq d BArith.zero then Some false
     else None
@@ -1291,7 +1298,9 @@ module BitfieldFunctor (Ints_t : IntOps.IntOps): SOverflow with type int_t = Int
 
   let c_logor ik i1 i2 = log2 (||) ik i1 i2
       
-  let c_logand ik i1 i2 = log2 (&&) ik i1 i2
+  let c_logand ik i1 i2 = 
+    M.trace "bitfield" "and op (c_logand)";
+    log2 (&&) ik i1 i2
 
   let c_lognot ik i1 = log1 not ik i1
 
@@ -1299,7 +1308,8 @@ module BitfieldFunctor (Ints_t : IntOps.IntOps): SOverflow with type int_t = Int
 
   let logxor ik i1 i2 = BArith.logxor i1 i2
 
-  let logand ik i1 i2 = BArith.logand i1 i2
+  let logand ik i1 i2 = 
+    BArith.logand i1 i2
 
   let logor  ik i1 i2 = BArith.logor i1 i2
 
@@ -1313,15 +1323,14 @@ module BitfieldFunctor (Ints_t : IntOps.IntOps): SOverflow with type int_t = Int
     M.trace "bitfield" "shift_right";
     failwith "Not implemented"
 
-  let shift_left ik a b =
-    M.trace "bitfield" "shift_left";
-    failwith "Not implemented"
+  let shift_left ik a b =(BArith.shift_left a b,{underflow=false; overflow=false})
 
-  let add ?no_ov ik x y=(top_of ik,{underflow=false; overflow=false})
+  let add ?no_ov ik x y=
+  if M.tracing then M.trace "bitfield" "Add %a to %a" pretty x pretty y;
+  (x,{underflow=false; overflow=false})
+
   let mul ?no_ov ik x y=(top_of ik,{underflow=false; overflow=false})
   let sub ?no_ov ik x y=(top_of ik,{underflow=false; overflow=false})
-
-  let shift_left ik a b =(top_of ik,{underflow=false; overflow=false})
 
   let rem ik x y = 
     M.trace "bitfield" "rem";
@@ -1331,18 +1340,20 @@ module BitfieldFunctor (Ints_t : IntOps.IntOps): SOverflow with type int_t = Int
 
 
   let eq ik x y =
-    M.trace "bitfield" "eq";
+    M.trace "bitfield" "eq %a %a" pretty x pretty y;
     if BArith.is_constant x && BArith.is_constant y then of_bool ik (BArith.eq x y) 
                 else if not (BArith.includes x y || (BArith.includes y x)) then of_bool ik false
                 else BArith.topbool
 
-    let ne ik x y =
-      if BArith.is_constant x && BArith.is_constant y then of_bool ik (not (BArith.eq x y)) 
-      else if not (BArith.includes x y || (BArith.includes y x)) then of_bool ik true
-      else BArith.topbool
+  let ne ik x y =
+    if BArith.is_constant x && BArith.is_constant y then of_bool ik (not (BArith.eq x y)) 
+    else if not (BArith.includes x y || (BArith.includes y x)) then of_bool ik true
+    else BArith.topbool
 
 
-  let leq (x:t) (y:t) = BArith.includes x y
+  let leq (x:t) (y:t) = 
+    M.trace "bitfield" "leq %a %a" pretty x pretty y;
+    true
 
   type comparison_result = 
     | Less
