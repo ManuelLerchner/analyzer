@@ -1377,11 +1377,16 @@ module BitfieldFunctor (Ints_t : IntOps.IntOps): SOverflow with type int_t = Int
     let z3 = Ints_t.logor (Ints_t.logor (Ints_t.logor z3  t1) t2) t3 in
     ((z3, o3),{underflow=false; overflow=false})
 
-  let rec div ?no_ov ik x y =(top_of ik,{underflow=false; overflow=false})
+  let rec div ?no_ov ik (z1, o1) (z2, o2) =
+    
+    (top_of ik,{underflow=false; overflow=false})
 
   let rem ik x y = 
     M.trace "bitfield" "rem";
-    top_of ik
+    (* x % y = x - (x / y) * y *)
+    let tmp = fst (div ik x y) in
+    let tmp = fst (mul ik tmp y) in 
+    fst (sub ik x tmp)
 
   let eq ik x y =
     M.trace "bitfield" "eq";
