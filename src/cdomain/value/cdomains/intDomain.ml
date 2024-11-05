@@ -1233,9 +1233,9 @@ module BitFieldArith (Ints_t : IntOps.IntOps) = struct
   let is_constant (z,o) = (Ints_t.logxor z o) = one_mask
 
   (* assumes that no invalid state can be reached*)
-  let max (z,o) = (if o < Ints_t.zero then Ints_t.neg z else o)
+  let max ik (z,o) = (if isSigned ik then (if o < Ints_t.zero then Ints_t.neg z else o) else o)
 
-  let min (z,o) = (if o < Ints_t.zero then o else Ints_t.neg z)
+  let min ik (z,o) = (if isSigned ik then (if o < Ints_t.zero then o else Ints_t.neg z) else Ints_t.neg z)
 
 end
 
@@ -1400,7 +1400,7 @@ module BitfieldFunctor (Ints_t : IntOps.IntOps): SOverflow with type int_t = Int
     else BArith.topbool
 
 
-  let leq (x:t) (y:t) = (BArith.max x) <= (BArith.min y)
+  let leq (x:t) (y:t) = BArith.includes x y
 
   type comparison_result = 
     | Less
@@ -1457,20 +1457,20 @@ let compare_bitfields ?(strict=true) ?(signed=false) (z1,o1) (z2,o2) =
   end;
   !result
 
-  let ge ik x y = if (BArith.min x) >= (BArith.max y) then of_bool ik true 
-                  else if (BArith.max x) < (BArith.min y) then of_bool ik false 
+  let ge ik x y = if (BArith.min ik x) >= (BArith.max ik y) then of_bool ik true 
+                  else if (BArith.max ik x) < (BArith.min ik y) then of_bool ik false 
                   else BArith.topbool
 
-  let le ik x y = if (BArith.max x) <= (BArith.min y) then of_bool ik true 
-                  else if (BArith.min x) > (BArith.max y) then of_bool ik false 
+  let le ik x y = if (BArith.max ik x) <= (BArith.min ik y) then of_bool ik true 
+                  else if (BArith.min ik x) > (BArith.max ik y) then of_bool ik false 
                   else BArith.topbool
 
-  let gt ik x y = if (BArith.min x) > (BArith.max y) then of_bool ik true 
-                  else if (BArith.max x) <= (BArith.min y) then of_bool ik false 
+  let gt ik x y = if (BArith.min ik x) > (BArith.max ik y) then of_bool ik true 
+                  else if (BArith.max ik x) <= (BArith.min ik y) then of_bool ik false 
                   else BArith.topbool
 
-  let lt ik x y = if (BArith.max x) < (BArith.min y) then of_bool ik true 
-                  else if (BArith.min x) >= (BArith.max y) then of_bool ik false 
+  let lt ik x y = if (BArith.max ik x) < (BArith.min ik y) then of_bool ik true 
+                  else if (BArith.min ik x) >= (BArith.max ik y) then of_bool ik false 
                   else BArith.topbool
 
   let invariant_ikind e ik = 
