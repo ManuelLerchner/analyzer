@@ -1410,13 +1410,14 @@ let compare_bitfields ?(strict=true) ?(signed=false) (z1,o1) (z2,o2) =
   end;
   !result
 
-  let ge ik x y = if compare_bitfields x y = GreaterOrEqual then of_bool ik true else BArith.topbool
+  let ge ik x y = of_bool ik true (**if compare_bitfields x y = GreaterOrEqual then of_bool ik true else BArith.topbool*)
+  let le ik x y = 
+    M.trace "bitfield" "leq %a %a" pretty x pretty y;
+    of_bool ik true (**if compare_bitfields x y = LessOrEqual then of_bool ik true else BArith.topbool*)
 
-  let le ik x y = if compare_bitfields x y = LessOrEqual then of_bool ik true else BArith.topbool
+  let gt ik x y = of_bool ik true (**if compare_bitfields x y = Greater then of_bool ik true else BArith.topbool*)
 
-  let gt ik x y = if compare_bitfields x y = Greater then of_bool ik true else BArith.topbool
-
-  let lt ik x y = if compare_bitfields x y = Less then of_bool ik true else BArith.topbool
+  let lt ik x y = of_bool ik true (**if compare_bitfields x y = Less then of_bool ik true else BArith.topbool*)
 
   let invariant_ikind e ik = 
     M.trace "bitfield" "invariant_ikind";
@@ -3291,7 +3292,7 @@ struct
   (* cast from original type to ikind, set to top if the value doesn't fit into the new type *)
   let cast_to ?(suppress_ovwarn=false) ?torg ?(no_ov=false) t x =
     match x with
-    | None -> None
+    | None -> None 
     | Some (c, m) when m =: Z.zero ->
       let c' = Size.cast t c in
       (* When casting into a signed type and the result does not fit, the behavior is implementation-defined. (C90 6.2.1.2, C99 and C11 6.3.1.3) *)
