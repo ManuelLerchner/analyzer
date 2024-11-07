@@ -1233,9 +1233,9 @@ module BitFieldArith (Ints_t : IntOps.IntOps) = struct
   let is_constant (z,o) = (Ints_t.logxor z o) = one_mask
 
   (* assumes that no invalid state can be reached*)
-  let max ik (z,o) = (if isSigned ik then (if o < Ints_t.zero then Ints_t.neg z else o) else o)
+  let max ik (z,o) = (if isSigned ik then (if o < Ints_t.zero then Ints_t.lognot z else o) else o)
 
-  let min ik (z,o) = (if isSigned ik then (if o < Ints_t.zero then o else Ints_t.neg z) else Ints_t.neg z)
+  let min ik (z,o) = (if isSigned ik then (if o < Ints_t.zero then o else Ints_t.lognot z) else Ints_t.lognot z)
 
 end
 
@@ -1337,9 +1337,9 @@ module BitfieldFunctor (Ints_t : IntOps.IntOps): SOverflow with type int_t = Int
 
   let lognot ik i1 = BArith.lognot i1
 
-  let neg ?no_ov ik v =
+  let neg ?no_ov ik (z,o) =
     M.trace "bitfield" "neg";
-    failwith "Not implemented"
+    ((Ints_t.neg z, Ints_t.neg o),{underflow=false; overflow=false})
 
   let shift_right ik a b = 
     M.trace "bitfield" "shift_right";
@@ -1358,35 +1358,35 @@ module BitfieldFunctor (Ints_t : IntOps.IntOps): SOverflow with type int_t = Int
   *)
 
   let add ?no_ov ik (z1, o1) (z2, o2) =
-    let pv = Ints_t.logand o1 (Ints_t.neg z1) in
+    let pv = Ints_t.logand o1 (Ints_t.lognot z1) in
     let pm = Ints_t.logand o1 z1 in
-    let qv = Ints_t.logand o2 (Ints_t.neg z2) in
+    let qv = Ints_t.logand o2 (Ints_t.lognot z2) in
     let qm = Ints_t.logand o2 z2 in
     let sv = Ints_t.add pv qv in
     let sm = Ints_t.add pm qm in
     let sigma = Ints_t.add sv sm in
     let chi = Ints_t.logxor sigma sv in
     let mu = Ints_t.logor (Ints_t.logor pm qm) chi in
-    let rv = Ints_t.logand sv (Ints_t.neg mu) in
+    let rv = Ints_t.logand sv (Ints_t.lognot mu) in
     let rm = mu in 
     let o3 = Ints_t.logor rv rm in 
-    let z3 = Ints_t.logor (Ints_t.neg rv) rm in
+    let z3 = Ints_t.logor (Ints_t.lognot rv) rm in
     ((z3, o3),{underflow=false; overflow=false})
 
   let sub ?no_ov ik (z1, o1) (z2, o2) =
-    let pv = Ints_t.logand o1 (Ints_t.neg z1) in
+    let pv = Ints_t.logand o1 (Ints_t.lognot z1) in
     let pm = Ints_t.logand o1 z1 in
-    let qv = Ints_t.logand o2 (Ints_t.neg z2) in
+    let qv = Ints_t.logand o2 (Ints_t.lognot z2) in
     let qm = Ints_t.logand o2 z2 in
     let dv = Ints_t.sub pv qv in
     let alpha = Ints_t.add dv pm in
     let beta = Ints_t.sub dv qm in
     let chi = Ints_t.logxor alpha beta in
     let mu = Ints_t.logor (Ints_t.logor pm qm) chi in
-    let rv = Ints_t.logand dv (Ints_t.neg mu) in
+    let rv = Ints_t.logand dv (Ints_t.lognot mu) in
     let rm = mu in 
     let o3 = Ints_t.logor rv rm in 
-    let z3 = Ints_t.logor (Ints_t.neg rv) rm in
+    let z3 = Ints_t.logor (Ints_t.lognot rv) rm in
     ((z3, o3),{underflow=false; overflow=false})
 
   let mul ?no_ov ik (z1, o1) (z2, o2) =
@@ -1398,7 +1398,7 @@ module BitfieldFunctor (Ints_t : IntOps.IntOps): SOverflow with type int_t = Int
     let o3 = ref Ints_t.zero in 
     for i = Size.bit ik downto 0 do 
       if Ints_t.logand !z1 Ints_t.one == Ints_t.one then 
-        if Ints_t.logand (Ints_t.neg !o1) Ints_t.one == Ints_t.one then 
+        if Ints_t.logand (Ints_t.lognot !o1) Ints_t.one == Ints_t.one then 
           let tmp = Ints_t.add (Ints_t.logand !z3 !o3) !z2 in 
           z3 := Ints_t.logor !z3 tmp;
           o3 := Ints_t.logor !o3 tmp
@@ -1415,7 +1415,7 @@ module BitfieldFunctor (Ints_t : IntOps.IntOps): SOverflow with type int_t = Int
     ((!z3, !o3),{underflow=false; overflow=false})
 
   let rec div ?no_ov ik (z1, o1) (z2, o2) =
-    if BArith.is_constant (z1, o1) && BArith.is_constant (z2, o2) then (let res = Ints_t.div z1 z2 in ((res, Ints_t.neg res),{underflow=false; overflow=false}))
+    if BArith.is_constant (z1, o1) && BArith.is_constant (z2, o2) then (let res = Ints_t.div z1 z2 in ((res, Ints_t.lognot res),{underflow=false; overflow=false}))
     else (top_of ik,{underflow=false; overflow=false})
 
   let rem ik x y = 
