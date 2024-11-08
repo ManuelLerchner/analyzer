@@ -1220,14 +1220,14 @@ module BitfieldArith (Ints_t : IntOps.IntOps) = struct
 
   let join (z1,o1) (z2,o2) = (Ints_t.logor z1 z2, Ints_t.logor o1 o2)
 
-  let get_bit bf pos = Ints_t.logand Ints_t.one @@ Ints_t.shift_right bf (pos-1)
-  let set_bit ?(zero=false) bf pos =
-    let one_mask = Ints_t.shift_left Ints_t.one pos in
+  let get_bit n i = (Ints_t.logand (Ints_t.shift_right n (i-1)) Ints_t.one) 
+  let set_bit ?(zero=false) n i =
+    let one_mask = Ints_t.shift_left Ints_t.one i in
     if zero then
       let zero_mask = Ints_t.lognot one_mask in
-      Ints_t.logand bf zero_mask
+      Ints_t.logand n zero_mask
     else
-      Ints_t.logor bf one_mask
+      Ints_t.logor n one_mask
 
   let max_shift ik =
     let ilog2 n =
@@ -1301,58 +1301,42 @@ module BitfieldFunctor (Ints_t : IntOps.IntOps): SOverflow with type int_t = Int
   let top_of ik = top ()
   let bot_of ik = bot () 
 
-
   let range ik (z,o) = 
-    let knownBitMask = Ints_t.logxor z o in
-    let unknownBitMask = Ints_t.lognot knownBitMask in
-    let impossibleBitMask = Ints_t.lognot (Ints_t.logor z o) in
-    let guaranteedBits = Ints_t.logand o knownBitMask in
+    let known_bits = Ints_t.logxor z o in
+    let unknown_bits = Ints_t.lognot known_bits in
+    let undef_bits = Ints_t.lognot (Ints_t.logor z o) in
+    let bits_set2one = Ints_t.logand o known_bits in
 
-    if impossibleBitMask <> BArith.zero_mask then
+    if undef_bits <> BArith.zero_mask then
       failwith "Impossible bitfield"
     else
-
       let min=if isSigned ik then
           let signBitMask = Ints_t.shift_left Ints_t.one (Size.bit ik - 1) in
-          let worstPossibleUnknownBits = Ints_t.logand unknownBitMask signBitMask in
-          Size.cast ik (Ints_t.to_bigint (Ints_t.logor guaranteedBits worstPossibleUnknownBits))
+          let worstPossibleUnknownBits = Ints_t.logand unknown_bits signBitMask in
+          Size.cast ik @@ Ints_t.to_bigint (Ints_t.logor bits_set2one worstPossibleUnknownBits)
         else
-          let worstPossibleUnknownBits = Ints_t.logand unknownBitMask BArith.zero_mask in
-          Size.cast ik (Ints_t.to_bigint (Ints_t.logor guaranteedBits worstPossibleUnknownBits))
-
+          Size.cast ik (Ints_t.to_bigint bits_set2one)
       in 
-      let (_,fullMask) = Size.range ik in
-      let worstPossibleUnknownBits = Ints_t.logand unknownBitMask (Ints_t.of_bigint fullMask) in
-
-      let max =if isSigned ik then
-          Size.cast ik (Ints_t.to_bigint (Ints_t.logor guaranteedBits worstPossibleUnknownBits))
-        else
-          Size.cast ik (Ints_t.to_bigint (Ints_t.logor guaranteedBits worstPossibleUnknownBits))
-
+      let max = Size.cast ik @@ Ints_t.to_bigint @@ Ints_t.logor bits_set2one unknown_bits in
       in (min,max)
-
-
-  let get_bit n i = (Ints_t.logand (Ints_t.shift_right n (i-1)) Ints_t.one) 
 
   let norm ?(suppress_ovwarn=false) ik (z,o) = 
     let (min_ik, max_ik) = Size.range ik in
-
-    let (min,max) = range ik (z,o) in
+    let (min, max) = range ik (z,o) in
     let underflow = Z.compare min min_ik < 0 in
     let overflow = Z.compare max max_ik > 0 in
-
-    let new_bitfield=
+    let bf_wrapped =
       (if isSigned ik then
-         let newz = Ints_t.logor (Ints_t.logand z (Ints_t.of_bigint max_ik)) (Ints_t.mul (Ints_t.of_bigint min_ik) (get_bit z (Size.bit ik))) in
-         let newo = Ints_t.logor (Ints_t.logand o (Ints_t.of_bigint max_ik)) (Ints_t.mul (Ints_t.of_bigint min_ik) (get_bit o (Size.bit ik))) in
-         (newz,newo)
+         let z_wrapped = Ints_t.logor (Ints_t.logand z (Ints_t.of_bigint max_ik)) (Ints_t.mul (Ints_t.of_bigint min_ik) (get_bit z (Size.bit ik))) in
+         let o_wrapped = Ints_t.logor (Ints_t.logand o (Ints_t.of_bigint max_ik)) (Ints_t.mul (Ints_t.of_bigint min_ik) (get_bit o (Size.bit ik))) in
+         (z_wrapped,o_wrapped)
        else
-         let newz = Ints_t.logor z (Ints_t.neg (Ints_t.of_bigint (Z.add max_ik Z.one))) in
-         let newo = Ints_t.logand o (Ints_t.of_bigint max_ik) in
-         (newz,newo))
+         let z_wrapped = Ints_t.logor z (Ints_t.neg (Ints_t.of_bigint (Z.add max_ik Z.one))) in
+         let o_wrapped = Ints_t.logand o (Ints_t.of_bigint max_ik) in
+         (z_wrapped,o_wrapped))
     in
-    if suppress_ovwarn then (new_bitfield, {underflow=false; overflow=false})
-    else (new_bitfield, {underflow=underflow; overflow=overflow})
+    if suppress_ovwarn then (bf_wrapped, {underflow=false; overflow=false})
+    else (bf_wrapped, {underflow=underflow; overflow=overflow})
 
   let show t = 
     if t = bot () then "bot" else
@@ -1417,6 +1401,7 @@ module BitfieldFunctor (Ints_t : IntOps.IntOps): SOverflow with type int_t = Int
     | None, None -> top_of ik
     | None, Some x | Some x, None -> of_bool ik x
     | Some x, Some y -> of_bool ik (f x y)
+
   let c_logor ik i1 i2 = log2 (||) ik i1 i2
 
   let c_logand ik i1 i2 = log2 (&&) ik i1 i2
@@ -1434,21 +1419,13 @@ module BitfieldFunctor (Ints_t : IntOps.IntOps): SOverflow with type int_t = Int
 
   let lognot ik i1 = BArith.lognot i1
 
-  let shift_right ik a b = (top_of ik,{underflow=false; overflow=false})
-
-  (*TODO norming*)
   let shift_right ik a b = 
     M.trace "bitfield" "shift_right";
-    match BArith.shift ~left:false ik a b with
-    | None -> (bot (), {underflow=false; overflow=false})
-    | Some x -> (x, {underflow=false; overflow=false})
+    norm ik @@ BArith.shift ~left:false ik a b |> Option.value ~default: (bot ())
 
-  (*TODO norming*)
   let shift_left ik a b =
     M.trace "bitfield" "shift_left";
-    match BArith.shift ~left:true ik a b with
-    | None -> (bot (), {underflow=false; overflow=false})
-    | Some x -> (x, {underflow=false; overflow=false})
+    norm ik @@ BArith.shift ~left:true ik a b |> Option.value ~default: (bot ())
 
 
   (* Arith *)
@@ -1468,12 +1445,12 @@ module BitfieldFunctor (Ints_t : IntOps.IntOps): SOverflow with type int_t = Int
   (*  Comparison *)
 
   let eq ik x y =
-    if BArith.is_constant x && BArith.is_constant y then of_bool ik (BArith.eq x y) 
+    if BArith.is_const x && BArith.is_const y then of_bool ik (BArith.eq x y) 
     else if not (leq x y || leq y x) then of_bool ik false
     else BArith.top_bool
 
   let ne ik x y =
-    if BArith.is_constant x && BArith.is_constant y then of_bool ik (not (BArith.eq x y)) 
+    if BArith.is_const x && BArith.is_const y then of_bool ik (not (BArith.eq x y)) 
     else if not (leq x y || leq y x) then of_bool ik true
     else BArith.top_bool
 
