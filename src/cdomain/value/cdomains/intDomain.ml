@@ -1233,9 +1233,15 @@ module BitFieldArith (Ints_t : IntOps.IntOps) = struct
   let is_constant (z,o) = (Ints_t.logxor z o) = one_mask
 
   (* assumes that no invalid state can be reached*)
-  let max ik (z,o) = (if isSigned ik then (if o < Ints_t.zero then Ints_t.lognot z else o) else o)
+  let max ik (z,o) = 
+    let z_cast = Size.cast ik (Ints_t.to_bigint (Ints_t.lognot z)) in
+    let o_cast = Size.cast ik (Ints_t.to_bigint z) in
+    Z.max z_cast o_cast
 
-  let min ik (z,o) = (if isSigned ik then (if o < Ints_t.zero then o else Ints_t.lognot z) else Ints_t.lognot z)
+  let min ik (z,o) = 
+    let z_cast = Size.cast ik (Ints_t.to_bigint (Ints_t.lognot z)) in
+    let o_cast = Size.cast ik (Ints_t.to_bigint z) in
+    Z.min z_cast o_cast
 
 end
 
@@ -1337,10 +1343,6 @@ module BitfieldFunctor (Ints_t : IntOps.IntOps): SOverflow with type int_t = Int
 
   let lognot ik i1 = BArith.lognot i1
 
-  let neg ?no_ov ik (z,o) =
-    M.trace "bitfield" "neg";
-    ((Ints_t.neg z, Ints_t.neg o),{underflow=false; overflow=false})
-
   let shift_right ik a b = 
     M.trace "bitfield" "shift_right";
     failwith "Not implemented"
@@ -1394,12 +1396,12 @@ module BitfieldFunctor (Ints_t : IntOps.IntOps): SOverflow with type int_t = Int
     let o1 = ref o1 in
     let z2 = ref z2 in 
     let o2 = ref o2 in
-    let z3 = ref Ints_t.zero in 
-    let o3 = ref Ints_t.zero in 
+    let z3 = ref BArith.one_mask in 
+    let o3 = ref BArith.zero_mask in 
     for i = Size.bit ik downto 0 do 
-      if Ints_t.logand !z1 Ints_t.one == Ints_t.one then 
-        if Ints_t.logand (Ints_t.lognot !o1) Ints_t.one == Ints_t.one then 
-          let tmp = Ints_t.add (Ints_t.logand !z3 !o3) !z2 in 
+      if Ints_t.logand !o1 Ints_t.one == Ints_t.one then 
+        if Ints_t.logand !z1 Ints_t.one == Ints_t.one then 
+          let tmp = Ints_t.add (Ints_t.logand !z3 !o3) !o2 in 
           z3 := Ints_t.logor !z3 tmp;
           o3 := Ints_t.logor !o3 tmp
         else
@@ -1410,7 +1412,7 @@ module BitfieldFunctor (Ints_t : IntOps.IntOps): SOverflow with type int_t = Int
       z1 := Ints_t.shift_right !z1 1;
       o1 := Ints_t.shift_right !o1 1;
       z2 := Ints_t.shift_left !z2 1;
-      o2 := Ints_t.shift_right !o2 1;
+      o2 := Ints_t.shift_left !o2 1;
     done;
     ((!z3, !o3),{underflow=false; overflow=false})
 
@@ -1426,6 +1428,10 @@ module BitfieldFunctor (Ints_t : IntOps.IntOps): SOverflow with type int_t = Int
     let tmp = fst (mul ik tmp y) in 
     fst (sub ik x tmp))
     else top_of ik
+
+  let neg ?no_ov ik x =
+    M.trace "bitfield" "neg";
+    sub ?no_ov ik BArith.zero x
 
   let eq ik x y =
     M.trace "bitfield" "eq";
