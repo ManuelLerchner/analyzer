@@ -1200,9 +1200,11 @@ module BitfieldArith (Ints_t : IntOps.IntOps) = struct
   let ( ^: ) = Ints_t.logxor
   let ( >>: ) = Ints_t.shift_left
   let ( <<: ) = Ints_t.shift_right
-  let ( <: ) = fun a b -> Ints_t.compare a b < 0
   let ( =: ) = Ints_t.equal
+  let ( <: ) = fun a b -> Ints_t.compare a b < 0
+  let ( <=: ) = fun a b -> a <: b || a =: b
   let ( >: ) = fun a b -> Ints_t.compare a b > 0
+  let ( >=: ) = fun a b -> a >: b || a =: b
 
   let zero_mask = Ints_t.zero
   let one_mask = !:zero_mask
@@ -1311,6 +1313,10 @@ module BitfieldFunctor (Ints_t : IntOps.IntOps): SOverflow with type int_t = Int
   let ( &: ) = BArith.( &: )
   let ( |: ) = BArith.( |: )
   let ( ^: ) = BArith.( ^: )
+  let ( <: ) = BArith.( <: )
+  let ( <=: ) = BArith.( <=: )
+  let ( >: ) = BArith.( >: )
+  let ( >=: ) = BArith.( >=: )
   let ( <<: ) = BArith.( <<: )
   let ( >>: ) = BArith.( >>: )
 
@@ -1368,7 +1374,7 @@ module BitfieldFunctor (Ints_t : IntOps.IntOps): SOverflow with type int_t = Int
   let meet ik x y = (norm ik @@ BArith.meet x y) |> fst
 
   let widen ik x y = (norm ik @@ BArith.widen x y) |> fst
-  let narrow ik x y = y
+  let narrow ik x y = (norm ik @@ BArith.narrow x y) |> fst
 
   let of_int ik (x: int_t) = (norm ik @@ BArith.of_int x) 
   let to_int (z,o) = if is_bot (z,o) then None else
@@ -1383,14 +1389,13 @@ module BitfieldFunctor (Ints_t : IntOps.IntOps): SOverflow with type int_t = Int
   let of_interval ?(suppress_ovwarn=false) ik (x,y) =
     (* naive implentation -> horrible O(n) runtime *)
     let (min_ik, max_ik) = Size.range ik in
-    let result = ref (bot ()) in
-    let current = ref (min_ik) in
-    let bf = ref (bot ()) in
-    while Z.leq !current max_ik do
-      bf := BArith.join !bf (BArith.of_int (Ints_t.of_bigint !current));
-      current := Z.add !current Z.one
-    done;
-    norm ~suppress_ovwarn ik !result
+    let loop_range acc cntr =
+      if cntr < max_ik
+        then let next_bf = BArith.join acc (BArith.of_int @@ Ints_t.of_bigint cntr) in
+        loop_range next_bf (Z.add cntr Z.one)
+      else acc
+    in
+    norm ~suppress_ovwarn ik @@ loop_range (bot ()) min_ik
 
   let of_bool _ik = function true -> BArith.one | false -> BArith.zero
 
@@ -1602,7 +1607,22 @@ module BitfieldFunctor (Ints_t : IntOps.IntOps): SOverflow with type int_t = Int
         top_of ik
     | _ -> top_of ik
 
-  let refine_with_interval ik t i = t
+  (*
+    Suppose we have [4, 6]
+    we consinder the cases when the bf is out of range i.e. bf (< | >) []
+  *)
+
+  (* Assumption that i is in correct ik range? *)
+  let refine_with_interval ik t i =
+    match i with None -> t
+    | Some (l, u) ->
+      let bf_max = BArith.max t in
+      let bf_min = BArith.min t in
+      match bf_max =: l, bf_max <: l, bf_min =: u, bf_min >: u
+      | true, _, _, _ -> of_int l
+      | _, _, true, _ -> of_int u
+      | _, false, _, false -> meet ik t (of_interval ik (l, u)) (* simple intersection? *)
+      | _ -> bot ()
 
   let refine_with_excl_list ik t (excl : (int_t list * (int64 * int64)) option) : t = t
 
