@@ -96,7 +96,8 @@ module Tuple6 = struct
   let printn ?(first="(") ?(sep=",") ?(last=")") printer out pair =
     print ~first ~sep ~last printer printer printer printer printer out pair
 
-  let compare ?(cmp1=Pervasives.compare) ?(cmp2=Pervasives.compare) ?(cmp3=Pervasives.compare) ?(cmp4=Pervasives.compare) ?(cmp5=Pervasives.compare) ?(cmp6=Pervasives.compare) (a1,a2,a3,a4,a5,a6) (b1,b2,b3,b4,b5,b6) =
+    (*use Stdlib because for goblint ocaml 4.14 is requeired and therefore no need to be backward compatible for 4.07 and below is needed*)
+  let compare ?(cmp1=Stdlib.compare) ?(cmp2=Stdlib.compare) ?(cmp3=Stdlib.compare) ?(cmp4=Stdlib.compare) ?(cmp5=Stdlib.compare) ?(cmp6=Stdlib.compare) (a1,a2,a3,a4,a5,a6) (b1,b2,b3,b4,b5,b6) =
     let c1 = cmp1 a1 b1 in
     if c1 <> 0 then c1 else
       let c2 = cmp2 a2 b2 in
